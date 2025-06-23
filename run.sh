@@ -11,4 +11,4 @@
 #SBATCH --mail-user=se0361@princeton.edu
 
 conda activate sofia
-python main.py
+python training.py
