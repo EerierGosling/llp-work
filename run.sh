@@ -8,7 +8,7 @@
 #SBATCH -e errfile            # send stderr to errfile
 #SBATCH -t 00:01:00           # time requested in hour:minute:second
 #SBATCH --mail-type=all       # choice between begin, end, all to notify you via email
-#SBATCH --mail-user=<your-netid>@princeton.edu
+#SBATCH --mail-user=se0361@princeton.edu
 
 conda activate sofia
 python main.py
