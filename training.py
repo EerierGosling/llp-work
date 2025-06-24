@@ -18,12 +18,13 @@ parser.add_argument('--job_id', type=int, required=True)
 job_id = parser.parse_args().job_id
 
 config={
-    "learning_rate": 0.005,
-    "weight_decay": [0.0001, 0.001, 0.01, 0.1][job_id],
+    "learning_rate": 0.001,
+    "weight_decay": 0.01,
+    "gamma": [0.85, 0.9, 0.95, 0.1][job_id],
     "batch_size": 32,
     "architecture": "CNN",
     "dataset": "CIFAR-10",
-    "epochs": 20,
+    "epochs": 40,
 }
 
 wandb.init(
@@ -88,6 +89,7 @@ if __name__ == '__main__':
     testloader = torch.utils.data.DataLoader(testset, batch_size=wandb.config.batch_size, shuffle=False, num_workers=2)
 
     optimizer = optim.SGD(net.parameters(), lr=wandb.config.learning_rate, momentum=0.9, weight_decay=wandb.config.weight_decay)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=wandb.config.gamma)
 
     accuracy = []
 
@@ -133,7 +135,8 @@ if __name__ == '__main__':
                 test_total += labels.size(0)
                 test_correct += (predicted == labels).sum().item()
 
-        wandb.log({"train_acc": train_correct / train_total, "test_acc": test_correct / test_total, "loss": epoch_loss / train_total})
+        wandb.log({"train_acc": train_correct / train_total, "test_acc": test_correct / test_total, "loss": epoch_loss / len(trainloader)})
+        scheduler.step()
         epoch_loss = 0.0
 
     PATH = f'./trained-models/cifar_net-lr_{wandb.config.learning_rate}.pth'
