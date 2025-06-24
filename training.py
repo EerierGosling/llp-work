@@ -19,9 +19,9 @@ job_id = parser.parse_args().job_id
 
 wandb.init(
     project="classfier-cifar10",
-    name=f"experiment_{job_id}_{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+    name=f"experiment_{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}_{job_id}",
     config={
-        "learning_rate": 0.02,
+        "learning_rate": 0.01,
         "batch_size": 32,
         "architecture": "CNN",
         "dataset": "CIFAR-10",
