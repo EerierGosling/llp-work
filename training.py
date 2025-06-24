@@ -89,7 +89,7 @@ if __name__ == '__main__':
     accuracy = []
 
     for epoch in range(wandb.config.epochs):  # loop over the dataset multiple times
-        running_loss = 0.0
+        epoch_loss = 0.0
         net.train()
         for i, data in enumerate(trainloader, 0):
 
@@ -106,16 +106,16 @@ if __name__ == '__main__':
             loss.backward()
             optimizer.step()
 
-            # print statistics
-            running_loss += loss.item()
-            if i % 2000 == 1999:    # print every 2000 mini-batches
-                print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 2000:.3f}')
-                running_loss = 0.0
+            epoch_loss += loss.item()
+
+            _, predicted = torch.max(outputs, 1)
+            train_total += labels.size(0)
+            train_correct += (predicted == labels).sum().item()
         
         net.eval()
         # testing the model
-        correct = 0
-        total = 0
+        test_correct = 0
+        test_total = 0
 
         with torch.no_grad():
             for data in testloader:
@@ -125,10 +125,11 @@ if __name__ == '__main__':
                 outputs = net(images)
                 # the class with the highest energy is what we choose as prediction
                 _, predicted = torch.max(outputs, 1)
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
+                test_total += labels.size(0)
+                test_correct += (predicted == labels).sum().item()
 
-        wandb.log({"acc": correct/total, "loss": running_loss / 2000})
+        wandb.log({"train_acc": train_correct / train_total, "test_acc": test_correct / test_total, "loss": epoch_loss / train_total})
+        epoch_loss = 0.0
 
     PATH = f'./trained-models/cifar_net-lr_{wandb.config.learning_rate}.pth'
     torch.save(net.state_dict(), PATH)
