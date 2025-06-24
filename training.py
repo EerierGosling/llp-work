@@ -1,6 +1,6 @@
 # https://docs.pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html
 
-num_epochs = 5
+num_epochs = 20
 
 def reset_csv():
     with open('results.csv', 'w') as f:
@@ -16,10 +16,15 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     import sys
     import argparse
+    import os
+
+    # Device setup
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
 
     transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
-    batch_size = 32
+    batch_size = 200
 
     classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
@@ -45,6 +50,7 @@ if __name__ == '__main__':
     learning_rate_options = [0.001, 0.005, 0.01, 0.05, 0.1]
 
     net = Net()
+    net.to(device)  # Move model to GPU
 
     criterion = nn.CrossEntropyLoss()
 
@@ -69,6 +75,7 @@ if __name__ == '__main__':
         for i, data in enumerate(trainloader, 0):
             # get the inputs; data is a list of [inputs, labels]
             inputs, labels = data
+            inputs, labels = inputs.to(device), labels.to(device)  # Move data to GPU
 
             # zero the parameter gradients
             optimizer.zero_grad()
@@ -92,6 +99,7 @@ if __name__ == '__main__':
         with torch.no_grad():
             for data in testloader:
                 images, labels = data
+                images, labels = images.to(device), labels.to(device)  # Move data to GPU
                 # calculate outputs by running images through the network
                 outputs = net(images)
                 # the class with the highest energy is what we choose as prediction
