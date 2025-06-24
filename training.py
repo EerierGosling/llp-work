@@ -20,7 +20,6 @@ job_id = parser.parse_args().job_id
 config={
     "learning_rate": 0.001,
     "weight_decay": 0.01,
-    "gamma": 1,
     "batch_size": 32,
     "architecture": "CNN",
     "dataset": "CIFAR-10",
@@ -29,7 +28,7 @@ config={
 
 wandb.init(
     project="classfier-cifar10",
-    name=f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}_lr {config['learning_rate']}_wd {config['weight_decay']}_bs {config['batch_size']}",
+    name=f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
     config=config,
 )
 
@@ -99,8 +98,8 @@ if __name__ == '__main__':
     testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=test_transform)
     testloader = torch.utils.data.DataLoader(testset, batch_size=wandb.config.batch_size, shuffle=False, num_workers=2)
 
-    optimizer = optim.SGD(net.parameters(), lr=wandb.config.learning_rate, momentum=0.9, weight_decay=wandb.config.weight_decay)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=wandb.config.gamma)
+    optimizer = optim.AdamW(net.parameters(), lr=wandb.config.learning_rate, weight_decay=wandb.config.weight_decay)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=wandb.config.epochs)
 
     accuracy = []
 
