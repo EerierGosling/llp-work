@@ -1,6 +1,6 @@
 # https://docs.pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html
 
-num_epochs = 20
+num_epochs = 100
 
 def reset_csv():
     with open('results.csv', 'w') as f:
@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
     transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
-    batch_size = 200
+    batch_size = 32
 
     classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
