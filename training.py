@@ -43,11 +43,13 @@ class Net(nn.Module):
 
 learning_rate_options = [0.001, 0.005, 0.01, 0.05, 0.1]
 
-net = Net()
-
-criterion = nn.CrossEntropyLoss()
 
 if __name__ == '__main__':
+
+    net = Net()
+
+    criterion = nn.CrossEntropyLoss()
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--job_id', type=int, required=True)
     job_id = parser.parse_args().job_id
