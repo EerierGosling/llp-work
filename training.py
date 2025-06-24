@@ -22,10 +22,10 @@ wandb.init(
     name=f"experiment_{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}_{job_id}",
     config={
         "learning_rate": 0.01,
-        "batch_size": 32,
+        "batch_size": 1000,
         "architecture": "CNN",
         "dataset": "CIFAR-10",
-        "epochs": 10,
+        "epochs": 3,
     }
 )
 
