@@ -9,7 +9,7 @@
 #SBATCH -t 00:30:00           # time requested in hour:minute:second
 #SBATCH --mail-type=all       # choice between begin, end, all to notify you via email
 #SBATCH --mail-user=se0361@princeton.edu
-#SBATCH --array=0-3           # creates 4 jobs with index 0-3
+#SBATCH --array=0
 
 source ~/.bashrc
 conda activate sofia
