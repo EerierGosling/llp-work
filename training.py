@@ -90,6 +90,8 @@ if __name__ == '__main__':
 
     for epoch in range(wandb.config.epochs):  # loop over the dataset multiple times
         epoch_loss = 0.0
+        train_total = 0
+        train_correct = 0
         net.train()
         for i, data in enumerate(trainloader, 0):
 
