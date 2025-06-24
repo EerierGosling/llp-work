@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import sys
 import argparse
 
-num_epochs = 10
+num_epochs = 5
 
 def reset_csv():
     with open('results.csv', 'w') as f:
