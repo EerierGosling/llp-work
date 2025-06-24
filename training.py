@@ -84,7 +84,7 @@ if __name__ == '__main__':
     testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
     testloader = torch.utils.data.DataLoader(testset, batch_size=wandb.config.batch_size, shuffle=False, num_workers=2)
 
-    optimizer = optim.SGD(net.parameters(), lr=wandb.config.learning_rate, momentum=0.9)
+    optimizer = optim.SGD(net.parameters(), lr=wandb.config.learning_rate, momentum=0.9, weight_decay=5e-4)
 
     accuracy = []
 
