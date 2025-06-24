@@ -4,11 +4,15 @@
 #SBATCH --cpus-per-task=8     # Specify the number of CPUs your task will need.
 #SBATCH --gres=gpu:1          # the number of GPUs requested
 #SBATCH --mem=50G             # memory 
-#SBATCH -o slurm/outfile.txt            # send stdout to outfile
-#SBATCH -e slurm/errfile.txt            # send stderr to errfile
-#SBATCH -t 00:01:00           # time requested in hour:minute:second
+#SBATCH -o slurm/outfile_%A_%a.txt      # send stdout to outfile
+#SBATCH -e slurm/errfile_%A_%a.txt      # send stderr to errfile
+#SBATCH -t 00:30:00           # time requested in hour:minute:second
 #SBATCH --mail-type=all       # choice between begin, end, all to notify you via email
 #SBATCH --mail-user=se0361@princeton.edu
+#SBATCH --array=0-4           # creates 5 jobs with indices 0-4
 
 conda activate sofia
-python training.py
+python3 -c "from training import reset_csv; reset_csv()"
+python training.py --job_id $SLURM_ARRAY_TASK_ID
+git commit -am "finished training; committing output"
+git push origin main

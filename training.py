@@ -1,24 +1,26 @@
+# https://docs.pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html
+
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
+import matplotlib.pyplot as plt
+import sys
+import argparse
 
-transform = transforms.Compose(
-    [transforms.ToTensor(),
-     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+num_epochs = 10
+
+def reset_csv():
+    with open('results.csv', 'w') as f:
+        f.write('epoch,' + ','.join([str(i) for i in range(1, num_epochs+1)]) + '\n')
+
+transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
 batch_size = 4
 
-trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
-
-testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
-testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
-
 classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
-
-
-import torch.nn as nn
-import torch.nn.functional as F
 
 class Net(nn.Module):
     def __init__(self):
@@ -39,18 +41,30 @@ class Net(nn.Module):
         x = self.fc3(x)
         return x
 
+learning_rate_options = [0.001, 0.005, 0.01, 0.05, 0.1]
 
 net = Net()
 
-
-import torch.optim as optim
-
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
 if __name__ == '__main__':
-    # Move all your execution code here
-    for epoch in range(1):  # loop over the dataset multiple times
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--job_id', type=int, required=True)
+    job_id = parser.parse_args().job_id
+
+    trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
+
+    testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
+
+    learning_rate = learning_rate_options[job_id]
+
+    optimizer = optim.SGD(net.parameters(), lr=learning_rate, momentum=0.9)
+
+    accuracy = []
+
+    for epoch in range(num_epochs):  # loop over the dataset multiple times
         running_loss = 0.0
         for i, data in enumerate(trainloader, 0):
             # get the inputs; data is a list of [inputs, labels]
@@ -70,15 +84,32 @@ if __name__ == '__main__':
             if i % 2000 == 1999:    # print every 2000 mini-batches
                 print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 2000:.3f}')
                 running_loss = 0.0
+        
+        # testing the model
+        correct = 0
+        total = 0
+
+        with torch.no_grad():
+            for data in testloader:
+                images, labels = data
+                # calculate outputs by running images through the network
+                outputs = net(images)
+                # the class with the highest energy is what we choose as prediction
+                _, predicted = torch.max(outputs, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
+
+        accuracy.append(correct/total)
+
+    with open('results.csv', 'a') as f:
+        f.write(f'{learning_rate},' + ','.join([str(a) for a in accuracy]) + '\n')
 
     print('Finished Training')
 
-    PATH = './cifar_net.pth'
+    PATH = f'./trained-models/cifar_net-lr_{learning_rate}.pth'
     torch.save(net.state_dict(), PATH)
 
     print("saved")
-
-    # import matplotlib.pyplot as plt
 
     # dataiter = iter(testloader)
     # images, labels = next(dataiter)
