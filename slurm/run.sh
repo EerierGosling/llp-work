@@ -15,6 +15,3 @@ source ~/.bashrc
 conda activate sofia
 python3 -c "from training import reset_csv; reset_csv()"
 python training.py --job_id $SLURM_ARRAY_TASK_ID
-git add .
-git commit -am "finished training; committing output"
-git push origin main
