@@ -1,3 +1,0 @@
-Using device: cuda
-Finished Training
-saved
