@@ -21,11 +21,11 @@ wandb.init(
     project="classfier-cifar10",
     name=f"experiment_{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}_{job_id}",
     config={
-        "learning_rate": 0.01,
-        "batch_size": 1000,
+        "learning_rate": 0.005,
+        "batch_size": 32,
         "architecture": "CNN",
         "dataset": "CIFAR-10",
-        "epochs": 3,
+        "epochs": 20,
     }
 )
 
@@ -130,14 +130,9 @@ if __name__ == '__main__':
 
         wandb.log({"acc": correct/total, "loss": running_loss / 2000})
 
-    wandb.finish()
-
-    with open('results.csv', 'a') as f:
-        f.write(f'{wandb.config.learning_rate},' + ','.join([str(a) for a in accuracy]) + '\n')
-
-    print('Finished Training')
-
     PATH = f'./trained-models/cifar_net-lr_{wandb.config.learning_rate}.pth'
     torch.save(net.state_dict(), PATH)
+
+    wandb.finish()
 
     print("saved")
