@@ -11,6 +11,7 @@
 #SBATCH --mail-user=se0361@princeton.edu
 #SBATCH --array=0-4           # creates 5 jobs with indices 0-4
 
+conda init
 conda activate sofia
 python3 -c "from training import reset_csv; reset_csv()"
 python training.py --job_id $SLURM_ARRAY_TASK_ID
