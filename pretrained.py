@@ -10,10 +10,10 @@ import datetime
 config={
     "learning_rate": 0.001,
     "weight_decay": 0.01,
-    "batch_size": 300,
+    "batch_size": 32,
     "architecture": "CNN",
     "dataset": "CIFAR-10",
-    "epochs": 40,
+    "epochs": 100,
 }
 
 wandb.init(
