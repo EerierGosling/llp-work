@@ -10,7 +10,7 @@ import datetime
 config={
     "learning_rate": 0.001,
     "weight_decay": 0.01,
-    "batch_size": 32,
+    "batch_size": 300,
     "architecture": "CNN",
     "dataset": "CIFAR-10",
     "epochs": 40,
@@ -22,7 +22,7 @@ wandb.init(
     config=config,
 )
 
-model = models.resnet34(pretrained=True)
+model = models.resnet34(weights='IMAGENET1K_V1')
 
 model.eval()
 
@@ -104,5 +104,6 @@ testloader = torch.utils.data.DataLoader(testset, batch_size=wandb.config.batch_
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
-
-train_model(model, trainloader, testloader, criterion, optimizer, num_epochs=wandb.config.epochs)
+if __name__ == "__main__":
+    model.to("cuda" if torch.cuda.is_available() else "cpu")
+    train_model(model, trainloader, testloader, criterion, optimizer, num_epochs=wandb.config.epochs)
