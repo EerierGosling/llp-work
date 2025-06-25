@@ -82,30 +82,31 @@ def evaluate_model(model, dataloader):
             correct += (predicted == labels).sum().item()
     return correct / total
 
-train_transform = transforms.Compose([
-    transforms.RandomHorizontalFlip(p=0.5),
-    transforms.RandomCrop(32, padding=4),
-    transforms.RandomRotation(10),
-    transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
-    transforms.ToTensor(),
-    transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
-])
 
-test_transform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
-])
-
-
-trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=train_transform)
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=wandb.config.batch_size, shuffle=True, num_workers=2)
-testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=test_transform)
-testloader = torch.utils.data.DataLoader(testset, batch_size=wandb.config.batch_size, shuffle=False, num_workers=2)
-
-criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
 if __name__ == "__main__":
+    train_transform = transforms.Compose([
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomCrop(32, padding=4),
+        transforms.RandomRotation(10),
+        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+        transforms.ToTensor(),
+        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+    ])
+
+    test_transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+    ])
+
+    trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=train_transform)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=wandb.config.batch_size, shuffle=True, num_workers=2)
+    testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=test_transform)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=wandb.config.batch_size, shuffle=False, num_workers=2)
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model.to(device)
     train_model(model, trainloader, testloader, criterion, optimizer, num_epochs=wandb.config.epochs, device=device)
