@@ -9,8 +9,7 @@
 #SBATCH -t 00:30:00           # time requested in hour:minute:second
 #SBATCH --mail-type=all       # choice between begin, end, all to notify you via email
 #SBATCH --mail-user=se0361@princeton.edu
-#SBATCH --array=0
 
 source ~/.bashrc
 conda activate sofia
-python training.py --job_id $SLURM_ARRAY_TASK_ID
+python pretrained.py

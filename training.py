@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-import torchvision
+import pretrained
 import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
 import sys
@@ -100,10 +100,10 @@ if __name__ == '__main__':
     net.to(device)
 
     criterion = nn.CrossEntropyLoss()
-    trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=train_transform)
+    trainset = pretrained.datasets.CIFAR10(root='./data', train=True, download=True, transform=train_transform)
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=wandb.config.batch_size, shuffle=True, num_workers=2)
 
-    testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=test_transform)
+    testset = pretrained.datasets.CIFAR10(root='./data', train=False, download=True, transform=test_transform)
     testloader = torch.utils.data.DataLoader(testset, batch_size=wandb.config.batch_size, shuffle=False, num_workers=2)
 
     optimizer = optim.AdamW(net.parameters(), lr=wandb.config.learning_rate, weight_decay=wandb.config.weight_decay)
