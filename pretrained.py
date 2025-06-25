@@ -65,17 +65,18 @@ def train_model(model, trainloader, testloader, criterion, optimizer, num_epochs
             train_total += labels.size(0)
             train_correct += (predicted == labels).sum().item()
         
-        test_acc = evaluate_model(model, testloader)
+        test_acc = evaluate_model(model, testloader, device=device)
 
         wandb.log({"train_acc": train_correct / train_total, "test_acc": test_acc})
         print("logged")
 
-def evaluate_model(model, dataloader):
+def evaluate_model(model, dataloader, device):
     model.eval()
     correct = 0
     total = 0
     with torch.no_grad():
         for inputs, labels in dataloader:
+            inputs, labels = inputs.to(device), labels.to(device)
             outputs = model(inputs)
             _, predicted = torch.max(outputs, 1)
             total += labels.size(0)
