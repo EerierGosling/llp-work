@@ -47,13 +47,14 @@ def predict_image(image_path):
     
     return predicted.item()
 
-def train_model(model, trainloader, testloader, criterion, optimizer, num_epochs):
+def train_model(model, trainloader, testloader, criterion, optimizer, num_epochs, device):
     model.train()
     
     for epoch in range(num_epochs):
         train_correct = 0
         train_total = 0
         for inputs, labels in trainloader:
+            inputs, labels = inputs.to(device), labels.to(device)
             optimizer.zero_grad()
             outputs = model(inputs)
             loss = criterion(outputs, labels)
@@ -105,5 +106,6 @@ criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
 if __name__ == "__main__":
-    model.to("cuda" if torch.cuda.is_available() else "cpu")
-    train_model(model, trainloader, testloader, criterion, optimizer, num_epochs=wandb.config.epochs)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model.to(device)
+    train_model(model, trainloader, testloader, criterion, optimizer, num_epochs=wandb.config.epochs, device=device)
