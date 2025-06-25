@@ -17,12 +17,12 @@ config={
 }
 
 wandb.init(
-    project="classfier-cifar10-resnet101",
+    project="classfier-cifar10-resnet34",
     name=f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
     config=config,
 )
 
-model = models.resnet101(weights='IMAGENET1K_V1')
+model = models.resnet34(weights='IMAGENET1K_V1')
 model.maxpool = nn.Identity()
 model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
 
