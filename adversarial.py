@@ -33,12 +33,6 @@ config={
     "adversarial_ratio": adversarial_ratio,
 }
 
-wandb.init(
-    project="classfier-cifar10-adversarial",
-    name=f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-    config=config,
-)
-
 
 # Device setup
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -114,7 +108,14 @@ class Net(nn.Module):
         return x
         
 if __name__ == '__main__':
+    
     print("starting")
+
+    wandb.init(
+        project="classfier-cifar10-adversarial",
+        name=f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        config=config,
+    )
     net = Net()
     net.to(device)
 
