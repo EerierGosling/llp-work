@@ -12,4 +12,4 @@
 
 source ~/.bashrc
 conda activate sofia
-python pretrained.py
+python run.py
