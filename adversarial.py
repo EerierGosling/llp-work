@@ -10,16 +10,16 @@ import wandb
 import datetime
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--learning_rate', type=int, required=True)
+parser.add_argument('--learning_rate', type=float, required=True)
 learning_rate = parser.parse_args().learning_rate
 
 parser.add_argument('--weight_decay', type=float, required=True)
 weight_decay = parser.parse_args().weight_decay
 
-parser.add_argument('--epsilon', type=int, required=True)
+parser.add_argument('--epsilon', type=float, required=True)
 epsilon = parser.parse_args().epsilon
 
-parser.add_argument('--adversarial_ratio', type=int, required=True)
+parser.add_argument('--adversarial_ratio', type=float, required=True)
 adversarial_ratio = parser.parse_args().adversarial_ratio
 
 config={
