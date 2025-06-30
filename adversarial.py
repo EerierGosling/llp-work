@@ -23,9 +23,10 @@ config={
     "batch_size": 32,
     "architecture": "CNN",
     "dataset": "CIFAR-10",
-    "epochs": 40,
+    "epochs": 60,
     "epsilon": args.epsilon,
     "adversarial_ratio": args.adversarial_ratio,
+    "warmup_epochs": 10,
 }
 
 
@@ -133,11 +134,15 @@ if __name__ == '__main__':
         adv_correct = 0
         net.train()
         
-        for i, data in enumerate(trainloader, 0):
+        current_adv_ratio = 0.0 if epoch < wandb.config.warmup_epochs else wandb.config.adversarial_ratio
 
-            # get the inputs; data is a list of [inputs, labels]
+        if epoch >= wandb.config.warmup_epochs:
+            ramp_epochs = 10
+            current_adv_ratio = min(wandb.config.adversarial_ratio, (epoch - wandb.config.warmup_epochs) / ramp_epochs * wandb.config.adversarial_ratio)
+        
+        for i, data in enumerate(trainloader, 0):
             inputs, labels = data
-            inputs, labels = inputs.to(device), labels.to(device)  # Move data to GPU
+            inputs, labels = inputs.to(device), labels.to(device)
 
             optimizer.zero_grad()
 
@@ -145,20 +150,28 @@ if __name__ == '__main__':
             clean_outputs = net(inputs)
             clean_loss = criterion(clean_outputs, labels)
             
-            # Adversarial training - compute gradients for FGSM
-            inputs.requires_grad = True
-            adv_outputs_temp = net(inputs)
-            adv_loss_temp = criterion(adv_outputs_temp, labels)
-            net.zero_grad()
-            adv_loss_temp.backward()
-            data_grad = inputs.grad.data
-            
-            adv_inputs = fgsm_attack(inputs, wandb.config.epsilon, data_grad)
-            adv_outputs = net(adv_inputs)
-            adv_loss = criterion(adv_outputs, labels)
-            
-            # Combined loss
-            total_loss = (1 - wandb.config.adversarial_ratio) * clean_loss + wandb.config.adversarial_ratio * adv_loss
+            if current_adv_ratio > 0:
+                # Adversarial training with multiple attack strengths
+                total_adv_loss = 0
+                attack_strengths = [wandb.config.epsilon * 0.5, wandb.config.epsilon, wandb.config.epsilon * 1.5]
+                
+                for eps in attack_strengths:
+                    inputs_copy = inputs.clone().detach().requires_grad_(True)
+                    adv_outputs_temp = net(inputs_copy)
+                    adv_loss_temp = criterion(adv_outputs_temp, labels)
+                    net.zero_grad()
+                    adv_loss_temp.backward()
+                    data_grad = inputs_copy.grad.data
+                    
+                    adv_inputs = fgsm_attack(inputs_copy, eps, data_grad)
+                    adv_outputs = net(adv_inputs)
+                    total_adv_loss += criterion(adv_outputs, labels)
+                
+                total_adv_loss /= len(attack_strengths)
+                total_loss = (1 - current_adv_ratio) * clean_loss + current_adv_ratio * total_adv_loss
+            else:
+                total_loss = clean_loss
+                
             total_loss.backward()
             optimizer.step()
 
