@@ -12,4 +12,4 @@
 
 source ~/.bashrc
 conda activate sofia
-python run.py
+python run-adversarial.py
