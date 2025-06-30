@@ -150,6 +150,8 @@ if __name__ == '__main__':
             clean_outputs = net(inputs)
             clean_loss = criterion(clean_outputs, labels)
             
+            adv_outputs = clean_outputs
+            
             if current_adv_ratio > 0:
                 # Adversarial training with multiple attack strengths
                 total_adv_loss = 0
@@ -171,7 +173,7 @@ if __name__ == '__main__':
                 total_loss = (1 - current_adv_ratio) * clean_loss + current_adv_ratio * total_adv_loss
             else:
                 total_loss = clean_loss
-                
+
             total_loss.backward()
             optimizer.step()
 
