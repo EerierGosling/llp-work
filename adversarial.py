@@ -11,26 +11,21 @@ import datetime
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--learning_rate', type=float, required=True)
-learning_rate = parser.parse_args().learning_rate
-
 parser.add_argument('--weight_decay', type=float, required=True)
-weight_decay = parser.parse_args().weight_decay
-
 parser.add_argument('--epsilon', type=float, required=True)
-epsilon = parser.parse_args().epsilon
-
 parser.add_argument('--adversarial_ratio', type=float, required=True)
-adversarial_ratio = parser.parse_args().adversarial_ratio
+
+args = parser.parse_args()
 
 config={
-    "learning_rate": learning_rate,
-    "weight_decay": weight_decay,
+    "learning_rate": args.learning_rate,
+    "weight_decay": args.weight_decay,
     "batch_size": 32,
     "architecture": "CNN",
     "dataset": "CIFAR-10",
     "epochs": 40,
-    "epsilon": epsilon,
-    "adversarial_ratio": adversarial_ratio,
+    "epsilon": args.epsilon,
+    "adversarial_ratio": args.adversarial_ratio,
 }
 
 
