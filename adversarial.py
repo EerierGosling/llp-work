@@ -24,7 +24,7 @@ config={
     "batch_size": 32,
     "architecture": "CNN",
     "dataset": "CIFAR-10",
-    "epochs": 60,
+    "epochs": 100,
     "epsilon": args.epsilon,
     "adversarial_ratio": args.adversarial_ratio,
     "warmup_epochs": 10,
@@ -108,10 +108,10 @@ class Net(nn.Module):
 if __name__ == '__main__':
     
     print("starting")
-
+    name = f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     wandb.init(
         project="classfier-cifar10-adversarial",
-        name=f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        name=name,
         config=config,
     )
     net = Net()
@@ -138,9 +138,11 @@ if __name__ == '__main__':
         
         current_adv_ratio = 0.0 if epoch < wandb.config.warmup_epochs else wandb.config.adversarial_ratio
 
-        if epoch >= wandb.config.warmup_epochs:
+        if epoch >= wandb.config.warmup_epochs and wandb.config.adversarial_training:
             ramp_epochs = 10
             current_adv_ratio = min(wandb.config.adversarial_ratio, (epoch - wandb.config.warmup_epochs) / ramp_epochs * wandb.config.adversarial_ratio)
+        else:
+            current_adv_ratio = 0.0
         
         for i, data in enumerate(trainloader, 0):
             inputs, labels = data
@@ -148,14 +150,12 @@ if __name__ == '__main__':
 
             optimizer.zero_grad()
 
-            # Clean training
             clean_outputs = net(inputs)
             clean_loss = criterion(clean_outputs, labels)
             
             adv_outputs = clean_outputs
             
-            if current_adv_ratio > 0:
-                # Adversarial training with multiple attack strengths
+            if current_adv_ratio > 0 and wandb.config.adversarial_training:
                 total_adv_loss = 0
                 attack_strengths = [wandb.config.epsilon * 0.5, wandb.config.epsilon, wandb.config.epsilon * 1.5]
                 
@@ -201,18 +201,16 @@ if __name__ == '__main__':
                 images, labels = data
                 images, labels = images.to(device), labels.to(device)
                 
-                # Clean test accuracy
                 outputs = net(images)
                 _, predicted = torch.max(outputs, 1)
                 test_total += labels.size(0)
                 test_correct += (predicted == labels).sum().item()
                 
-        # Separate loop for adversarial test accuracy (requires gradients)
+
         for data in testloader:
             images, labels = data
-            images, labels = images.to(device), labels.to(device)
-            
-            # Adversarial test accuracy - compute gradients for FGSM
+            images, labels = images.to(device), labels.to(device)          
+
             images.requires_grad = True
             outputs = net(images)
             loss = criterion(outputs, labels)
@@ -226,17 +224,22 @@ if __name__ == '__main__':
                 _, adv_predicted = torch.max(adv_outputs, 1)
                 adv_test_correct += (adv_predicted == labels).sum().item()
 
-        wandb.log({
+        to_log = {
             "train_acc": train_correct / train_total,
             "train_adv_acc": adv_correct / train_total,
             "test_acc": test_correct / test_total,
             "test_adv_acc": adv_test_correct / test_total,
             "loss": epoch_loss / len(trainloader)
-        })
+        }
+
+        if current_adv_ratio > 0 and wandb.config.adversarial_training:
+            to_log["adversarial_ratio"] = current_adv_ratio
+
+        wandb.log(to_log)
         scheduler.step()
         epoch_loss = 0.0
 
-    PATH = f'./trained-models/cifar_net-adversarial-lr_{wandb.config.learning_rate}-eps_{wandb.config.epsilon}.pth'
+    PATH = f'./trained-models/{name}.pth'
     torch.save(net.state_dict(), PATH)
 
     wandb.finish()
