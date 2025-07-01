@@ -14,6 +14,7 @@ parser.add_argument('--learning_rate', type=float, required=True)
 parser.add_argument('--weight_decay', type=float, required=True)
 parser.add_argument('--epsilon', type=float, required=True)
 parser.add_argument('--adversarial_ratio', type=float, required=True)
+parser.add_argument('--adversarial_training', type=bool, required=True)
 
 args = parser.parse_args()
 
@@ -27,6 +28,7 @@ config={
     "epsilon": args.epsilon,
     "adversarial_ratio": args.adversarial_ratio,
     "warmup_epochs": 10,
+    "adversarial_training": args.adversarial_training,
 }
 
 
