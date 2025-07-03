@@ -106,6 +106,11 @@ class Net(nn.Module):
         return x
         
 if __name__ == '__main__':
+
+    model = models.resnet34()
+    model.maxpool = nn.Identity()
+    model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+
     
     print("starting")
     name = f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
@@ -114,8 +119,7 @@ if __name__ == '__main__':
         name=name,
         config=config,
     )
-    net = Net()
-    net.to(device)
+    model.to(device)
 
     criterion = nn.CrossEntropyLoss()
     trainset = datasets.CIFAR10(root='./data', train=True, download=True, transform=train_transform)
@@ -124,7 +128,7 @@ if __name__ == '__main__':
     testset = datasets.CIFAR10(root='./data', train=False, download=True, transform=test_transform)
     testloader = torch.utils.data.DataLoader(testset, batch_size=wandb.config.batch_size, shuffle=False, num_workers=2)
 
-    optimizer = optim.AdamW(net.parameters(), lr=wandb.config.learning_rate, weight_decay=wandb.config.weight_decay)
+    optimizer = optim.AdamW(model.parameters(), lr=wandb.config.learning_rate, weight_decay=wandb.config.weight_decay)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=wandb.config.epochs)
 
     accuracy = []
@@ -134,7 +138,7 @@ if __name__ == '__main__':
         train_total = 0
         train_correct = 0
         adv_correct = 0
-        net.train()
+        model.train()
         
         current_adv_ratio = 0.0 if epoch < wandb.config.warmup_epochs else wandb.config.adversarial_ratio
 
@@ -150,7 +154,7 @@ if __name__ == '__main__':
 
             optimizer.zero_grad()
 
-            clean_outputs = net(inputs)
+            clean_outputs = model(inputs)
             clean_loss = criterion(clean_outputs, labels)
             
             adv_outputs = clean_outputs
@@ -161,14 +165,14 @@ if __name__ == '__main__':
                 
                 for eps in attack_strengths:
                     inputs_copy = inputs.clone().detach().requires_grad_(True)
-                    adv_outputs_temp = net(inputs_copy)
+                    adv_outputs_temp = model(inputs_copy)
                     adv_loss_temp = criterion(adv_outputs_temp, labels)
-                    net.zero_grad()
+                    model.zero_grad()
                     adv_loss_temp.backward()
                     data_grad = inputs_copy.grad.data
                     
                     adv_inputs = fgsm_attack(inputs_copy, eps, data_grad)
-                    adv_outputs = net(adv_inputs)
+                    adv_outputs = model(adv_inputs)
                     total_adv_loss += criterion(adv_outputs, labels)
                 
                 total_adv_loss /= len(attack_strengths)
@@ -190,7 +194,7 @@ if __name__ == '__main__':
             _, adv_predicted = torch.max(adv_outputs, 1)
             adv_correct += (adv_predicted == labels).sum().item()
         
-        net.eval()
+        model.eval()
         # testing the model
         test_correct = 0
         test_total = 0
@@ -201,7 +205,7 @@ if __name__ == '__main__':
                 images, labels = data
                 images, labels = images.to(device), labels.to(device)
                 
-                outputs = net(images)
+                outputs = model(images)
                 _, predicted = torch.max(outputs, 1)
                 test_total += labels.size(0)
                 test_correct += (predicted == labels).sum().item()
@@ -212,15 +216,15 @@ if __name__ == '__main__':
             images, labels = images.to(device), labels.to(device)          
 
             images.requires_grad = True
-            outputs = net(images)
+            outputs = model(images)
             loss = criterion(outputs, labels)
-            net.zero_grad()
+            model.zero_grad()
             loss.backward()
             data_grad = images.grad.data
             
             adv_images = fgsm_attack(images, wandb.config.epsilon, data_grad)
             with torch.no_grad():
-                adv_outputs = net(adv_images)
+                adv_outputs = model(adv_images)
                 _, adv_predicted = torch.max(adv_outputs, 1)
                 adv_test_correct += (adv_predicted == labels).sum().item()
 
@@ -240,7 +244,7 @@ if __name__ == '__main__':
         epoch_loss = 0.0
 
     PATH = f'./trained-models/{name}.pth'
-    torch.save(net.state_dict(), PATH)
+    torch.save(model.state_dict(), PATH)
 
     wandb.finish()
 
