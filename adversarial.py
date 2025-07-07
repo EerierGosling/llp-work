@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import torchvision.models as models
 from torchvision import datasets, transforms
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,7 +15,7 @@ parser.add_argument('--learning_rate', type=float, required=True)
 parser.add_argument('--weight_decay', type=float, required=True)
 parser.add_argument('--epsilon', type=float, required=True)
 parser.add_argument('--adversarial_ratio', type=float, required=True)
-parser.add_argument('--adversarial_training', type=bool, required=True)
+parser.add_argument('--adversarial_training', action="store_true")
 
 args = parser.parse_args()
 
@@ -29,8 +30,8 @@ config={
     "adversarial_ratio": args.adversarial_ratio,
     "warmup_epochs": 10,
     "adversarial_training": args.adversarial_training,
+    "resnet_type": "resnet34",
 }
-
 
 # Device setup
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
