@@ -1,62 +1,69 @@
-import Image from "next/image";
+'use client';
 
-import { NextRequest, NextResponse } from 'next/server';
-import { NodeSSH } from 'node-ssh';
-import { writeFile } from 'fs/promises';
-
-async function runAnalysis(formData: FormData) {
-  'use server';
-
-  try {
-
-    const file = formData.get('file') as File;
-
-    const ssh = new NodeSSH();
-    
-    await ssh.connect({
-      host: 'neuronic.cs.princeton.edu',
-      username: 'se0361',
-      password: process.env.SSH_PASSWORD || '',
-      tryKeyboard: true,
-      onKeyboardInteractive(name, instructions, lang, prompts, finish) {            
-        if (prompts.length > 0) {
-          const prompt = prompts[0].prompt.toLowerCase();
-          
-          if (prompt.includes('password')) {
-            finish([process.env.SSH_PASSWORD || '']);
-          }
-          else {
-            finish(['1']);
-          }
-        }
-      }
-    });
-    
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    await ssh.execCommand('cd /n/fs/visualai-scr/temp_LLP/sofia/');
-
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const tempPath = join('/website-images', file.name);
-    await writeFile(tempPath, buffer);
-
-    const result = await ssh.execCommand(`sbatch --nodes=1 --gres=gpu:1 --mem=50G -t 01:00:00 --wrap=\"source ~/.bashrc && conda activate sofia && python analysis.py --file_name ${file.name}\"`);
-
-    ssh.dispose();
-    
-    return NextResponse.json({ success: true, output: result.stdout });
-  } catch (error) {
-    console.error('SSH operation failed:', error);
-    return NextResponse.json(
-      { success: false, error: (error as Error).message },
-      { status: 500 }
-    );
-  }
-}
+import { useState } from 'react';
 
 export default function Home() {
+  const [result, setResult] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const formData = new FormData(e.currentTarget);
+
+    try {
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+      setResult(data);
+    } catch (error) {
+      console.error('Error:', error);
+      setResult({ success: false, error: 'Failed to upload file' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    
+    <div className="p-8">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="file" className="block mb-2">Select File:</label>
+          <input
+            type="file"
+            name="file"
+            id="file"
+            required
+            className="border p-2"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
+        >
+          {loading ? 'Processing...' : 'Upload File'}
+        </button>
+      </form>
+
+      {result && (
+        <div className="mt-8">
+          {result.image && (
+            <div>
+              <h3 className="text-lg mb-2">Generated Image:</h3>
+              <img
+                src={`data:image/png;base64,${result.image}`}
+                alt="Analysis Result"
+                className="max-w-full h-auto"
+              />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
