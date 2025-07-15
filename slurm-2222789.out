@@ -1,0 +1,25 @@
+/u/se0361/.local/lib/python3.9/site-packages/torchvision/io/image.py:14: UserWarning: Failed to load image Python extension: 'libpng16.ca116d9f.so.16: cannot open shared object file: No such file or directory'If you don't plan on using image functionality from `torchvision.io`, you can ignore this warning. Otherwise, there might be something wrong with your environment. Did you have `libjpeg` or `libpng` installed before building `torchvision` from source?
+  warn(
+predicted:airplane
+actual:airplane
+predicted:airplane
+actual:airplane
+Loading pretrained model from /n/fs/wy-project/minimal-diffusion/trained_models3/UNet_cifar10-epoch_500-timesteps_1000-class_condn_True_ema_0.9995.pt
+Traceback (most recent call last):
+  File "/n/fs/visualai-scr/temp_LLP/sofia/llp-work/minimal-diffusion/analysis.py", line 233, in <module>
+    plt.imshow(noisy_image)
+  File "/u/se0361/.local/lib/python3.9/site-packages/matplotlib/pyplot.py", line 3562, in imshow
+    __ret = gca().imshow(
+  File "/u/se0361/.local/lib/python3.9/site-packages/matplotlib/__init__.py", line 1476, in inner
+    return func(
+  File "/u/se0361/.local/lib/python3.9/site-packages/matplotlib/axes/_axes.py", line 5895, in imshow
+    im.set_data(X)
+  File "/u/se0361/.local/lib/python3.9/site-packages/matplotlib/image.py", line 729, in set_data
+    self._A = self._normalize_image_array(A)
+  File "/u/se0361/.local/lib/python3.9/site-packages/matplotlib/image.py", line 690, in _normalize_image_array
+    A = cbook.safe_masked_invalid(A, copy=True)
+  File "/u/se0361/.local/lib/python3.9/site-packages/matplotlib/cbook.py", line 733, in safe_masked_invalid
+    x = np.array(x, subok=True, copy=copy)
+  File "/u/se0361/.local/lib/python3.9/site-packages/torch/_tensor.py", line 1225, in __array__
+    return self.numpy()
+TypeError: can't convert cuda:0 device type tensor to numpy. Use Tensor.cpu() to copy the tensor to host memory first.

@@ -1,0 +1,12 @@
+/u/se0361/.local/lib/python3.9/site-packages/torchvision/io/image.py:14: UserWarning: Failed to load image Python extension: 'libpng16.ca116d9f.so.16: cannot open shared object file: No such file or directory'If you don't plan on using image functionality from `torchvision.io`, you can ignore this warning. Otherwise, there might be something wrong with your environment. Did you have `libjpeg` or `libpng` installed before building `torchvision` from source?
+  warn(
+predicted:ship
+actual:ship
+predicted:ship
+actual:ship
+Traceback (most recent call last):
+  File "/n/fs/visualai-scr/temp_LLP/sofia/llp-work/minimal-diffusion/analysis.py", line 131, in <module>
+    noisy_image = diffusion.sample_from_forward_process(image_no_transform, timestep)
+  File "/n/fs/visualai-scr/temp_LLP/sofia/llp-work/minimal-diffusion/generate_data.py", line 98, in sample_from_forward_process
+    eps = torch.randn_like(x0)
+TypeError: randn_like(): argument 'input' (position 1) must be Tensor, not Image
