@@ -1,7 +1,8 @@
 /u/se0361/.local/lib/python3.9/site-packages/torchvision/io/image.py:14: UserWarning: Failed to load image Python extension: 'libpng16.ca116d9f.so.16: cannot open shared object file: No such file or directory'If you don't plan on using image functionality from `torchvision.io`, you can ignore this warning. Otherwise, there might be something wrong with your environment. Did you have `libjpeg` or `libpng` installed before building `torchvision` from source?
   warn(
-predicted:dog
-actual:dog
-predicted:dog
-actual:dog
-Loading pretrained model from /n/fs/wy-project/minimal-diffusion/trained_models3/UNet_cifar10-epoch_500-timesteps_1000-class_condn_True_ema_0.9995.pt
+Traceback (most recent call last):
+  File "/n/fs/visualai-scr/temp_LLP/sofia/llp-work/analysis.py", line 79, in <module>
+    gradients, _, _ = run_classifer(input_batch, adversarial=True, epsilon=epsilon, device=device)
+  File "/n/fs/visualai-scr/temp_LLP/sofia/llp-work/analysis_functions.py", line 18, in run_classifer
+    most_recent = max(files, key=os.path.getmtime)
+ValueError: max() arg is an empty sequence

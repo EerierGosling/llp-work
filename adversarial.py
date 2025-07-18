@@ -8,16 +8,23 @@ import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 import wandb
-import datetime
+import uuid
+import os
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--learning_rate', type=float, required=True)
 parser.add_argument('--weight_decay', type=float, required=True)
 parser.add_argument('--epsilon', type=float, required=True)
+parser.add_argument('--common_test_epsilons', type=str, required=True)
 parser.add_argument('--adversarial_ratio', type=float, required=True)
 parser.add_argument('--adversarial_training', action="store_true")
 
 args = parser.parse_args()
+
+common_test_epsilons = [float(eps) for eps in args.common_test_epsilons.split(',')]
+
+if args.epsilon not in common_test_epsilons:
+    common_test_epsilons.append(args.epsilon)
 
 config={
     "learning_rate": args.learning_rate,
@@ -27,6 +34,7 @@ config={
     "dataset": "CIFAR-10",
     "epochs": 100,
     "epsilon": args.epsilon,
+    "common_test_epsilons": common_test_epsilons,
     "adversarial_ratio": args.adversarial_ratio,
     "warmup_epochs": 10,
     "adversarial_training": args.adversarial_training,
@@ -114,7 +122,7 @@ if __name__ == '__main__':
 
     
     print("starting")
-    name = f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    name = f"{uuid.uuid4()}"
     wandb.init(
         project="classfier-cifar10-adversarial",
         name=name,
@@ -196,10 +204,11 @@ if __name__ == '__main__':
             adv_correct += (adv_predicted == labels).sum().item()
         
         model.eval()
+        
         # testing the model
         test_correct = 0
         test_total = 0
-        adv_test_correct = 0
+        adv_test_correct = {epsilon: 0 for epsilon in common_test_epsilons}
 
         with torch.no_grad():
             for data in testloader:
@@ -223,19 +232,23 @@ if __name__ == '__main__':
             loss.backward()
             data_grad = images.grad.data
             
-            adv_images = fgsm_attack(images, wandb.config.epsilon, data_grad)
-            with torch.no_grad():
-                adv_outputs = model(adv_images)
-                _, adv_predicted = torch.max(adv_outputs, 1)
-                adv_test_correct += (adv_predicted == labels).sum().item()
+            for epsilon in common_test_epsilons:
+                adv_images = fgsm_attack(images, epsilon, data_grad)
+                
+                with torch.no_grad():
+                    adv_outputs = model(adv_images)
+                    _, adv_predicted = torch.max(adv_outputs, 1)
+                    adv_test_correct[epsilon] += (adv_predicted == labels).sum().item()
 
         to_log = {
             "train_acc": train_correct / train_total,
             "train_adv_acc": adv_correct / train_total,
             "test_acc": test_correct / test_total,
-            "test_adv_acc": adv_test_correct / test_total,
             "loss": epoch_loss / len(trainloader)
         }
+
+        for epsilon, count in adv_test_correct.items():
+            to_log[f"test_adv_acc_{epsilon}"] = count / test_total
 
         if current_adv_ratio > 0 and wandb.config.adversarial_training:
             to_log["adversarial_ratio"] = current_adv_ratio
@@ -244,7 +257,8 @@ if __name__ == '__main__':
         scheduler.step()
         epoch_loss = 0.0
 
-    PATH = f'./trained-models/{name}.pth'
+    PATH = f'./trained-models/{"adversarial" if wandb.config.adversarial_training else "non_adversarial"}/{wandb.config.resnet_type}/{wandb.config.epsilon}/{name}.pth'
+    os.makedirs(os.path.dirname(PATH), exist_ok=True)
     torch.save(model.state_dict(), PATH)
 
     wandb.finish()

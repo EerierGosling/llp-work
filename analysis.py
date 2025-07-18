@@ -4,38 +4,34 @@ import torchvision.datasets as datasets
 from torchvision import transforms
 import random
 import numpy as np
+import pandas as pd
+import uuid
 from PIL import Image
 import matplotlib.pyplot as plt
 import torch.nn as nn
-import datetime
 import argparse
 from types import SimpleNamespace
 import matplotlib.pyplot as plt
 from sofias_generate_data import *
+from analysis_functions import *
 
-# setup
+print("starting")
 
-parser = argparse.ArgumentParser()
-
-adversarial = "2025-07-03 14:34:41"
-non_adversarial = "2025-07-03 14:34:43"
+# region - setup
+epsilon_options = np.arange(0, 0.3, 0.02)
+timestep_options = np.arange(0, 1000, 100)
 
 website = False
 
-parser.add_argument('--file_name', type=str)
-
 class_names = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
 
-
-# args = parser.parse_args()
-time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 device = "cuda" if torch.cuda.is_available() else "cpu"
 transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
 ])
 
-transform2 = transforms.Compose([
+transform_no_normalize = transforms.Compose([
     transforms.ToTensor(),
 ])
 
@@ -52,11 +48,14 @@ dataset = datasets.CIFAR10(
     root='./data', 
     train=False,
     download=True,
-    transform=transform2
+    transform=transform_no_normalize
 )
 
 
 if website:
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--file_name', type=str)
+    args = parser.parse_args()
     image_no_transform = Image.open(f"website-images/{args.file_name}").convert('RGB')
     image_no_transform = image_no_transform.resize((32, 32))
     input_tensor = transform(image_no_transform)
@@ -70,134 +69,74 @@ else:
 input_batch = image.unsqueeze(0)
 input_batch = input_batch.to(device)
 input_batch.requires_grad = True
+# endregion
+
+print("setup done")
+
+classifier_gradients = []
+
+for epsilon in epsilon_options:
+    gradients, _, _ = run_classifer(input_batch, adversarial=True, epsilon=epsilon, device=device)
+
+    classifier_gradients.append({ "epsilon": epsilon, "gradients": gradients })
+    print(f"epsilon {epsilon} done")
 
 
+diffusion_gradients = []
 
-# classifer
+for timestep in timestep_options:
+    gradients, saliency_map_diffusion = run_diffusion(input_batch, label, timestep, device=device)
 
-saliency_maps = []
-predicted_classes = []
+    classifier_gradients.append({ "timestep": timestep, "gradients": gradients })
 
-for i in range(2):
-    name = [adversarial, non_adversarial][i]
-
-    model = models.resnet34()
-    model.maxpool = nn.Identity()
-    model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
-
-    PATH = f'./trained-models/{name}.pth'
-    model.load_state_dict(torch.load(PATH))
-
-    model.eval()
-    model = model.to(device)
-
-    output = model(input_batch)
-
-    _, predicted_idx = torch.max(output, 1)
-    predicted_classes.append(predicted_idx.item())
-
-    print("predicted:" + class_names[label])
-    print("actual:" + class_names[predicted_classes[i]])
-
-    score = output[0, predicted_classes[i]]
-
-    gradients = torch.autograd.grad(outputs=score, inputs=input_batch)[0]
-
-    saliency = torch.abs(gradients)
-
-    saliency_maps.append(torch.max(saliency, dim=1)[0].squeeze().cpu().numpy())
-
-    saliency_maps[i] = (saliency_maps[i] - saliency_maps[i].min()) / (saliency_maps[i].max() - saliency_maps[i].min() + 1e-8)
+    print(f"timestep {timestep} done")
 
 
+results = []
 
+for classifier_gradient in classifier_gradients:
+    for diffusion_gradient in diffusion_gradients:
+        mse = mean_squared_error(classifier_gradient[1], diffusion_gradient[1])
+        cosine_sim = cosine_similarity(classifier_gradient[1], diffusion_gradient[1])
 
-# diffusion model
+        results.append({
+            "epsilon": classifier_gradient.epsilon,
+            "timestep": diffusion_gradient.timestep,
+            "mse": mse,
+            "cosine_similarity": cosine_sim
+        })
+        print(f"epsilon {classifier_gradient.epsilon}, timestep {diffusion_gradient.timestep} done")
 
+analysis_id = str(uuid.uuid4())[:8]
+csv_filename = f"/n/fs/visualai-scr/temp_LLP/sofia/llp-work/analysis-data/{analysis_id}.csv"
 
-# Specify the configuration
-args =  SimpleNamespace(
-    dataset='cifar10',
-    timesteps=1000,
-    device='cuda',
-    batch_size=8, 
-    guidance_scale=2.0,
-    ddim=True,
-    sampling_steps=50,
-    pretrained_ckpt='/n/fs/wy-project/minimal-diffusion/trained_models3/UNet_cifar10-epoch_500-timesteps_1000-class_condn_True_ema_0.9995.pt',
-    arch='UNet',
-    diffusion_steps=1000,
-)
+df = pd.DataFrame(results)
+df.to_csv(csv_filename, index=False)
 
-timestep = 200
+# region - show images
+if False:
+    plt.figure(figsize=(20, 5))
 
-diffusion = GaussianDiffusion(args.diffusion_steps, args.device)
+    plt.subplot(1, 4, 1)
+    plt.imshow(np.array(image_no_transform).transpose(1, 2, 0))
+    plt.title(f"Original: {class_names[label]}")
+    plt.axis('off')
 
-transform_diff = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-])
+    plt.subplot(1, 4, 2)
+    plt.imshow(saliency_maps[0], cmap='viridis')
+    plt.title(f"Predicted: {class_names[predicted_classes[0]]}")
+    plt.axis('off')
 
-class_label = torch.tensor([label], device=args.device)
+    plt.subplot(1, 4, 3)
+    plt.imshow(saliency_maps[1], cmap='viridis')
+    plt.title(f"Predicted: {class_names[predicted_classes[1]]}")
+    plt.axis('off')
 
-# setup diffusion model
-metadata = get_metadata(args.dataset)
-model = unets.__dict__[args.arch](
-    image_size=metadata.image_size,
-    in_channels=metadata.num_channels,
-    out_channels=metadata.num_channels,
-    num_classes=metadata.num_classes,
-).to(args.device)
+    plt.subplot(1, 4, 4)
+    plt.imshow(np.mean(saliency_map_diffusion, axis=0), cmap='viridis')
+    plt.title(f"Diffusion Gradient\nClass: {class_names[label]}")
+    plt.axis('off')
 
-# load the pre-trained model
-print(f"Loading pretrained model from {args.pretrained_ckpt}")
-d = fix_legacy_dict(torch.load(args.pretrained_ckpt, map_location=args.device))
-dm = model.state_dict()
-model.load_state_dict(d, strict=False)
-
-# Sample from the diffusion model
-model.eval()
-
-cond_gradients = sample_image(
-    model,
-    diffusion,
-    image_no_transform.to(args.device),
-    label,
-    timestep,
-    args=args
-)
-
-normalized_gradients = cond_gradients[0]
-normalized_gradients = (normalized_gradients - normalized_gradients.min()) / (normalized_gradients.max() - normalized_gradients.min() + 1e-8)
-
-saliency_diffusion = np.abs(cond_gradients)
-
-saliency_map_diffusion = np.max(saliency_diffusion, axis=0)
-
-saliency_map_diffusion = (saliency_map_diffusion - saliency_map_diffusion.min()) / (saliency_map_diffusion.max() - saliency_map_diffusion.min() + 1e-8)
-
-
-print(saliency_map_diffusion.shape, saliency_maps[1].shape)
-
-# show images
-
-plt.figure(figsize=(20, 5))
-
-plt.subplot(1, 4, 2)
-plt.imshow(saliency_maps[0], cmap='viridis')
-plt.title(f"Predicted: {class_names[predicted_classes[0]]}")
-plt.axis('off')
-
-plt.subplot(1, 4, 3)
-plt.imshow(saliency_maps[1], cmap='viridis')
-plt.title(f"Predicted: {class_names[predicted_classes[1]]}")
-plt.axis('off')
-
-plt.subplot(1, 4, 4)
-plt.imshow(saliency_map_diffusion.transpose(1, 2, 0))
-plt.title(f"Diffusion Gradient\nClass: {class_names[label]}")
-plt.axis('off')
-
-plt.tight_layout()
-plt.savefig(f"/n/fs/visualai-scr/temp_LLP/sofia/llp-work/analysis/website.png")
-
+    plt.tight_layout()
+    plt.savefig(f"/n/fs/visualai-scr/temp_LLP/sofia/llp-work/analysis/website.png")
+#endregion
