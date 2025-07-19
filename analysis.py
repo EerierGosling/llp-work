@@ -1,5 +1,4 @@
 import torch
-import torchvision.models as models
 import torchvision.datasets as datasets
 from torchvision import transforms
 import random
@@ -8,12 +7,11 @@ import pandas as pd
 import uuid
 from PIL import Image
 import matplotlib.pyplot as plt
-import torch.nn as nn
 import argparse
-from types import SimpleNamespace
 import matplotlib.pyplot as plt
 from sofias_generate_data import *
 from analysis_functions import *
+import os
 
 print("starting")
 
@@ -85,9 +83,9 @@ for epsilon in epsilon_options:
 diffusion_gradients = []
 
 for timestep in timestep_options:
-    gradients, saliency_map_diffusion = run_diffusion(input_batch, label, timestep, device=device)
+    gradients, saliency_map_diffusion = run_diffusion(image, label, timestep, device=device)
 
-    classifier_gradients.append({ "timestep": timestep, "gradients": gradients })
+    diffusion_gradients.append({ "timestep": timestep, "gradients": gradients })
 
     print(f"timestep {timestep} done")
 
@@ -96,19 +94,22 @@ results = []
 
 for classifier_gradient in classifier_gradients:
     for diffusion_gradient in diffusion_gradients:
-        mse = mean_squared_error(classifier_gradient[1], diffusion_gradient[1])
-        cosine_sim = cosine_similarity(classifier_gradient[1], diffusion_gradient[1])
+        mse = mean_squared_error(classifier_gradient["gradients"], diffusion_gradient["gradients"])
+        cosine_sim = cosine_similarity(classifier_gradient["gradients"], diffusion_gradient["gradients"])
 
         results.append({
-            "epsilon": classifier_gradient.epsilon,
-            "timestep": diffusion_gradient.timestep,
+            "epsilon": classifier_gradient["epsilon"],
+            "timestep": diffusion_gradient["timestep"],
             "mse": mse,
             "cosine_similarity": cosine_sim
         })
-        print(f"epsilon {classifier_gradient.epsilon}, timestep {diffusion_gradient.timestep} done")
+        print(f"epsilon {classifier_gradient['epsilon']}, timestep {diffusion_gradient['timestep']} done")
 
 analysis_id = str(uuid.uuid4())[:8]
 csv_filename = f"/n/fs/visualai-scr/temp_LLP/sofia/llp-work/analysis-data/{analysis_id}.csv"
+
+# Create directory if it doesn't exist
+os.makedirs("/n/fs/visualai-scr/temp_LLP/sofia/llp-work/analysis-data", exist_ok=True)
 
 df = pd.DataFrame(results)
 df.to_csv(csv_filename, index=False)

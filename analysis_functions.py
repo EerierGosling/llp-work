@@ -1,5 +1,4 @@
 import torchvision.models as models
-from torchvision import transforms
 import torch.nn as nn
 import torch
 import glob
@@ -12,8 +11,13 @@ def run_classifer(input_image, adversarial, epsilon=0, device='cuda', resnet_typ
     model.maxpool = nn.Identity()
     model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
 
+    if epsilon == 0:
+        epsilon = "0"
+
     model_folder = f'/n/fs/visualai-scr/temp_LLP/sofia/llp-work/trained-models/{"adversarial" if adversarial else "non_adversarial"}/{resnet_type}/{epsilon}'
+    print(model_folder)
     files = glob.glob(os.path.join(model_folder, "*.pth"))
+    print(files)
     
     most_recent = max(files, key=os.path.getmtime)
 
@@ -44,7 +48,7 @@ def run_diffusion(input_image, label, timestep, device='cuda'):
         dataset='cifar10',
         timesteps=1000,
         device=device,
-        batch_size=8, 
+        batch_size=1,
         guidance_scale=2.0,
         ddim=True,
         sampling_steps=50,
@@ -86,14 +90,55 @@ def run_diffusion(input_image, label, timestep, device='cuda'):
     saliency_map_diffusion = np.max(saliency_diffusion, axis=0)
     saliency_map_diffusion = (saliency_map_diffusion - saliency_map_diffusion.min()) / (saliency_map_diffusion.max() - saliency_map_diffusion.min() + 1e-8)
 
-    return normalized_gradients[0], saliency_map_diffusion
+    return cond_gradients[0], saliency_map_diffusion
 
 def mean_squared_error(gradient1, gradient2):
-    return torch.mean((gradient1 - gradient2) ** 2).item()
+    # Convert both to torch tensors on the same device
+    if isinstance(gradient1, np.ndarray):
+        gradient1 = torch.from_numpy(gradient1)
+    if isinstance(gradient2, np.ndarray):
+        gradient2 = torch.from_numpy(gradient2)
+    
+    # Ensure they're on the same device
+    device = gradient1.device if gradient1.is_cuda else 'cpu'
+    gradient1 = gradient1.to(device)
+    gradient2 = gradient2.to(device)
+    
+    # Flatten and ensure same shape
+    gradient1_flat = gradient1.view(-1)
+    gradient2_flat = gradient2.view(-1)
+    
+    # Take minimum length if they're different sizes
+    min_len = min(gradient1_flat.size(0), gradient2_flat.size(0))
+    gradient1_flat = gradient1_flat[:min_len]
+    gradient2_flat = gradient2_flat[:min_len]
+    
+    return torch.mean((gradient1_flat - gradient2_flat) ** 2).cpu().item()
 
 def cosine_similarity(gradient1, gradient2):
-    gradient1_flat = gradient1.view(gradient1.size(0), -1)
-    gradient2_flat = gradient2.view(gradient2.size(0), -1)
+    # Convert both to torch tensors on the same device
+    if isinstance(gradient1, np.ndarray):
+        gradient1 = torch.from_numpy(gradient1)
+    if isinstance(gradient2, np.ndarray):
+        gradient2 = torch.from_numpy(gradient2)
+    
+    # Ensure they're on the same device
+    device = gradient1.device if gradient1.is_cuda else 'cpu'
+    gradient1 = gradient1.to(device)
+    gradient2 = gradient2.to(device)
+    
+    # Flatten and ensure same shape
+    gradient1_flat = gradient1.view(-1)
+    gradient2_flat = gradient2.view(-1)
+    
+    # Take minimum length if they're different sizes
+    min_len = min(gradient1_flat.size(0), gradient2_flat.size(0))
+    gradient1_flat = gradient1_flat[:min_len]
+    gradient2_flat = gradient2_flat[:min_len]
+    
+    # Reshape for cosine similarity
+    gradient1_flat = gradient1_flat.unsqueeze(0)
+    gradient2_flat = gradient2_flat.unsqueeze(0)
     
     cos_sim = torch.nn.functional.cosine_similarity(gradient1_flat, gradient2_flat, dim=1)
-    return cos_sim.mean().item()
+    return cos_sim.mean().cpu().item()
