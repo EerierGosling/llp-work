@@ -127,7 +127,6 @@ class GaussianDiffusion:
         new_timesteps = np.linspace(
             0, self.timesteps - 1, num=timesteps, endpoint=True, dtype=int
         )
-        print(new_timesteps)
         alpha_bar = self.scalars["alpha_bar"][new_timesteps]
         new_betas = 1 - (
             alpha_bar / torch.nn.functional.pad(alpha_bar, [1, 0], value=1.0)[:-1]
@@ -149,7 +148,6 @@ class GaussianDiffusion:
                     # Get unconditional prediction (using label=0)
                 unconditional_kwargs = model_kwargs.copy()
                 unconditional_kwargs["y"] = torch.zeros_like(model_kwargs["y"])
-                print(current_t, current_sub_t)
                 unconditional_pred = model(final, current_t, **unconditional_kwargs)
                 
                 # Get conditional prediction

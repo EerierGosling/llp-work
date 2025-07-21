@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from sofias_generate_data import *
 import os
 
-def run_classifer(input_image, adversarial, epsilon=0, device='cuda', resnet_type='resnet34'):
+def run_classifer(image, adversarial, epsilon=0, device='cuda', resnet_type='resnet34'):
     model = models.resnet34()
     model.maxpool = nn.Identity()
     model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
@@ -15,9 +15,7 @@ def run_classifer(input_image, adversarial, epsilon=0, device='cuda', resnet_typ
         epsilon = "0"
 
     model_folder = f'/n/fs/visualai-scr/temp_LLP/sofia/llp-work/trained-models/{"adversarial" if adversarial else "non_adversarial"}/{resnet_type}/{epsilon}'
-    print(model_folder)
     files = glob.glob(os.path.join(model_folder, "*.pth"))
-    print(files)
     
     most_recent = max(files, key=os.path.getmtime)
 
@@ -26,14 +24,18 @@ def run_classifer(input_image, adversarial, epsilon=0, device='cuda', resnet_typ
     model.eval()
     model = model.to(device)
 
-    output = model(input_image)
+    input_batch = image.unsqueeze(0)
+    input_batch = input_batch.to(device)
+    input_batch.requires_grad = True
+
+    output = model(input_batch)
 
     _, predicted_idx = torch.max(output, 1)
     predicted_class = predicted_idx.item()
 
     score = output[0, predicted_class]
 
-    gradients = torch.autograd.grad(outputs=score, inputs=input_image)[0]
+    gradients = torch.autograd.grad(outputs=score, inputs=input_batch)[0]
 
     saliency = torch.abs(gradients)
     saliency_map = torch.max(saliency, dim=1)[0].squeeze().cpu().numpy()
