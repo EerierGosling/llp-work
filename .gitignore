@@ -4,3 +4,5 @@ __pycache__
 /wandb
 /trained-models
 /logs
+/analysis-data
+.ipynb_checkpoints

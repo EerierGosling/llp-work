@@ -1,0 +1,3 @@
+[submodule "minimal-diffusion"]
+	path = minimal-diffusion
+	url = https://github.com/yang-william/minimal-diffusion

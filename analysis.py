@@ -65,10 +65,11 @@ print("setup done")
 
 all_data = []
 
-for i in range(100):
+for i in range(20):
     random_index = random.randint(0, len(dataset_transformed) - 1)
     image, label = dataset_transformed[random_index]
     image_no_transform, _ = dataset[random_index]
+    print("images selected")
 
     classifier_gradients = []
 
@@ -76,7 +77,8 @@ for i in range(100):
         gradients, _, _ = run_classifer(image, adversarial=True, epsilon=epsilon, device=device)
 
         classifier_gradients.append({ "epsilon": epsilon, "gradients": gradients })
-        # print(f"epsilon {epsilon} done")
+        print(f"epsilon {epsilon} done")
+    print("done with classifier")
 
 
     diffusion_gradients = []
@@ -85,8 +87,9 @@ for i in range(100):
         gradients, saliency_map_diffusion = run_diffusion(image, label, timestep, device=device)
 
         diffusion_gradients.append({ "timestep": timestep, "gradients": gradients })
+        print(f"timestep {timestep} done")
 
-        # print(f"timestep {timestep} done")
+    print("done with diffusion")
 
 
     results = []
@@ -103,6 +106,8 @@ for i in range(100):
                 "cosine_similarity": cosine_sim
             })
             # print(f"epsilon {classifier_gradient['epsilon']}, timestep {diffusion_gradient['timestep']} done")
+
+    print("done getting diff")
 
     analysis_id = str(uuid.uuid4())[:8]
     csv_filename = f"/n/fs/visualai-scr/temp_LLP/sofia/llp-work/analysis-data/{analysis_id}.csv"
