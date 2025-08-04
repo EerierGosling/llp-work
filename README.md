@@ -1,1 +1,6 @@
-i'll write this later
+- train adversarial models with the other function
+- learn about what the two methods do
+- make slides
+- visualize images
+- figure out what to put into pgd
+- use library with 2k stars for pgd method

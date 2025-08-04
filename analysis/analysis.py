@@ -16,8 +16,8 @@ import os
 print("starting")
 
 # region - setup
-epsilon_options = np.arange(0, 0.3, 0.02)
-timestep_options = np.arange(0, 1000, 100)
+epsilon_options = np.arange(0, 0.6, 0.02)
+timestep_options = np.arange(0, 1000, 50)
 
 class_names = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
 
@@ -65,7 +65,9 @@ print("setup done")
 
 all_data = []
 
-for i in range(20):
+num_images = 30
+
+for i in range(num_images):
     random_index = random.randint(0, len(dataset_transformed) - 1)
     image, label = dataset_transformed[random_index]
     image_no_transform, _ = dataset[random_index]
@@ -74,7 +76,7 @@ for i in range(20):
     classifier_gradients = []
 
     for epsilon in epsilon_options:
-        gradients, _, _ = run_classifer(image, adversarial=True, epsilon=epsilon, device=device)
+        gradients, _, _ = run_classifer(image, label, adversarial=True, epsilon=epsilon, device=device)
 
         classifier_gradients.append({ "epsilon": epsilon, "gradients": gradients })
         print(f"epsilon {epsilon} done")
@@ -84,7 +86,7 @@ for i in range(20):
     diffusion_gradients = []
 
     for timestep in timestep_options:
-        gradients, saliency_map_diffusion = run_diffusion(image, label, timestep, device=device)
+        gradients, saliency_map_diffusion = run_diffusion(image_no_transform, label, timestep, device=device)
 
         diffusion_gradients.append({ "timestep": timestep, "gradients": gradients })
         print(f"timestep {timestep} done")
@@ -96,7 +98,7 @@ for i in range(20):
 
     for classifier_gradient in classifier_gradients:
         for diffusion_gradient in diffusion_gradients:
-            mse = mean_squared_error(classifier_gradient["gradients"], diffusion_gradient["gradients"])
+            mse = mean_squared_error(classifier_gradient["gradients"], diffusion_gradient["gradients"], device=device)
             cosine_sim = cosine_similarity(classifier_gradient["gradients"], diffusion_gradient["gradients"])
 
             results.append({
@@ -110,10 +112,10 @@ for i in range(20):
     print("done getting diff")
 
     analysis_id = str(uuid.uuid4())[:8]
-    csv_filename = f"/n/fs/visualai-scr/temp_LLP/sofia/llp-work/analysis-data/{analysis_id}.csv"
+    csv_filename = f"/n/fs/visualai-scr/temp_LLP/sofia/llp-work/analysis/data/{analysis_id}.csv"
 
     # Create directory if it doesn't exist
-    os.makedirs("/n/fs/visualai-scr/temp_LLP/sofia/llp-work/analysis-data", exist_ok=True)
+    os.makedirs("/n/fs/visualai-scr/temp_LLP/sofia/llp-work/analysis/data", exist_ok=True)
 
     df = pd.DataFrame(results)
     all_data.append(df)
@@ -122,7 +124,7 @@ for i in range(20):
     print(f"iteration {i+1} done")
 
 average_df = pd.concat(all_data).groupby(['epsilon', 'timestep']).mean().reset_index()
-average_csv_filename = f"/n/fs/visualai-scr/temp_LLP/sofia/llp-work/analysis-data/average_{str(uuid.uuid4())[:8]}-{pd.Timestamp.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv"
+average_csv_filename = f"/n/fs/visualai-scr/temp_LLP/sofia/llp-work/analysis/data/average/{num_images}_{pd.Timestamp.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv"
 average_df.to_csv(average_csv_filename, index=False)
 
 # region - show images

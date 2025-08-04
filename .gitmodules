@@ -1,3 +1,6 @@
 [submodule "minimal-diffusion"]
 	path = minimal-diffusion
 	url = https://github.com/yang-william/minimal-diffusion
+[submodule "adversarial-pretrained"]
+	path = adversarial-pretrained
+	url = https://github.com/ndb796/Pytorch-Adversarial-Training-CIFAR

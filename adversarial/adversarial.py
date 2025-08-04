@@ -10,6 +10,7 @@ import argparse
 import wandb
 import uuid
 import os
+from torchattacks import PGD
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--learning_rate', type=float, required=True)
@@ -18,6 +19,7 @@ parser.add_argument('--epsilon', type=float, required=True)
 parser.add_argument('--common_test_epsilons', type=str, required=True)
 parser.add_argument('--adversarial_ratio', type=float, required=True)
 parser.add_argument('--adversarial_training', action="store_true")
+parser.add_argument('--run_name', type=str, required=True)
 
 args = parser.parse_args()
 
@@ -42,7 +44,7 @@ config={
 }
 
 # Device setup
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = "cuda"
 print(f"Using device: {device}")
 
 train_transform = transforms.Compose([
@@ -61,58 +63,7 @@ test_transform = transforms.Compose([
 
 classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
-# https://docs.pytorch.org/tutorials/beginner/fgsm_tutorial.html
-def fgsm_attack(image, epsilon, data_grad):
-    # Collect the element-wise sign of the data gradient
-    sign_data_grad = data_grad.sign()
-    # Create the perturbed image by adjusting each pixel of the input image
-    perturbed_image = image + epsilon*sign_data_grad
-    # Adding clipping to maintain [0,1] range
-    perturbed_image = torch.clamp(perturbed_image, 0, 1)
-    # Return the perturbed image
-    return perturbed_image
 
-class Net(nn.Module):
-    def __init__(self):
-        super().__init__()
-        
-        self.conv1 = nn.Conv2d(3, 64, 3, padding=1)
-        self.conv2 = nn.Conv2d(64, 64, 3, padding=1)
-        self.conv3 = nn.Conv2d(64, 128, 3, padding=1)
-        self.conv4 = nn.Conv2d(128, 128, 3, padding=1)
-        self.conv5 = nn.Conv2d(128, 256, 3, padding=1)
-        self.conv6 = nn.Conv2d(256, 256, 3, padding=1)
-        
-        self.pool = nn.MaxPool2d(2, 2)
-        self.dropout_conv = nn.Dropout2d(0.25)
-        self.dropout = nn.Dropout(0.5)
-        
-        self.bn1 = nn.BatchNorm2d(64)
-        self.bn2 = nn.BatchNorm2d(128)
-        self.bn3 = nn.BatchNorm2d(256)
-        
-        self.fc1 = nn.Linear(256 * 4 * 4, 512)
-        self.fc2 = nn.Linear(512, 10)
-
-    def forward(self, x):
-
-        x = F.relu(self.bn1(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = self.dropout_conv(x)
-        
-        x = F.relu(self.bn2(self.conv3(x)))
-        x = self.pool(F.relu(self.conv4(x)))
-        x = self.dropout_conv(x)
-        
-        x = F.relu(self.bn3(self.conv5(x)))
-        x = self.pool(F.relu(self.conv6(x)))
-        x = self.dropout_conv(x)
-        
-        x = torch.flatten(x, 1)
-        x = F.relu(self.fc1(x))
-        x = self.dropout(x)
-        x = self.fc2(x)
-        return x
         
 if __name__ == '__main__':
 
@@ -122,13 +73,14 @@ if __name__ == '__main__':
 
     
     print("starting")
-    name = f"{uuid.uuid4()}"
     wandb.init(
         project="classfier-cifar10-adversarial",
-        name=name,
         config=config,
     )
     model.to(device)
+
+    atk = PGD(model, eps=wandb.config.epsilon, alpha=2/225, steps=5, random_start=True)
+    atk.set_normalization_used(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
     criterion = nn.CrossEntropyLoss()
     trainset = datasets.CIFAR10(root='./data', train=True, download=True, transform=train_transform)
@@ -165,43 +117,31 @@ if __name__ == '__main__':
 
             clean_outputs = model(inputs)
             clean_loss = criterion(clean_outputs, labels)
-            
+
             adv_outputs = clean_outputs
-            
             if current_adv_ratio > 0 and wandb.config.adversarial_training:
-                total_adv_loss = 0
-                attack_strengths = [wandb.config.epsilon * 0.5, wandb.config.epsilon, wandb.config.epsilon * 1.5]
-                
-                for eps in attack_strengths:
-                    inputs_copy = inputs.clone().detach().requires_grad_(True)
-                    adv_outputs_temp = model(inputs_copy)
-                    adv_loss_temp = criterion(adv_outputs_temp, labels)
-                    model.zero_grad()
-                    adv_loss_temp.backward()
-                    data_grad = inputs_copy.grad.data
-                    
-                    adv_inputs = fgsm_attack(inputs_copy, eps, data_grad)
-                    adv_outputs = model(adv_inputs)
-                    total_adv_loss += criterion(adv_outputs, labels)
-                
-                total_adv_loss /= len(attack_strengths)
-                total_loss = (1 - current_adv_ratio) * clean_loss + current_adv_ratio * total_adv_loss
+
+                adv_inputs = atk(inputs, labels)
+                adv_outputs = model(adv_inputs)
+                adv_loss = criterion(adv_outputs, labels)
+
+                total_loss = (1 - current_adv_ratio) * clean_loss + current_adv_ratio * adv_loss
             else:
                 total_loss = clean_loss
+
 
             total_loss.backward()
             optimizer.step()
 
             epoch_loss += total_loss.item()
 
-            # Calculate accuracy on clean examples
             _, predicted = torch.max(clean_outputs, 1)
             train_total += labels.size(0)
             train_correct += (predicted == labels).sum().item()
-            
-            # Calculate accuracy on adversarial examples
-            _, adv_predicted = torch.max(adv_outputs, 1)
-            adv_correct += (adv_predicted == labels).sum().item()
+
+            if current_adv_ratio > 0 and wandb.config.adversarial_training:
+                _, adv_predicted = torch.max(adv_outputs, 1)
+                adv_correct += (adv_predicted == labels).sum().item()
         
         model.eval()
         
@@ -230,10 +170,9 @@ if __name__ == '__main__':
             loss = criterion(outputs, labels)
             model.zero_grad()
             loss.backward()
-            data_grad = images.grad.data
             
             for epsilon in common_test_epsilons:
-                adv_images = fgsm_attack(images, epsilon, data_grad)
+                adv_images = atk(images, labels)
                 
                 with torch.no_grad():
                     adv_outputs = model(adv_images)
@@ -257,7 +196,11 @@ if __name__ == '__main__':
         scheduler.step()
         epoch_loss = 0.0
 
-    PATH = f'./trained-models/{"adversarial" if wandb.config.adversarial_training else "non_adversarial"}/{wandb.config.resnet_type}/{wandb.config.epsilon}/{name}.pth'
+        epoch_path = f'/n/fs/visualai-scr/temp_LLP/sofia/llp-work/trained-models/{"adversarial" if wandb.config.adversarial_training else "non_adversarial"}/{wandb.config.resnet_type}/{wandb.config.epsilon}/{args.run_name}.pth'
+        os.makedirs(os.path.dirname(epoch_path), exist_ok=True)
+        torch.save(model.state_dict(), epoch_path)
+
+    PATH = f'/n/fs/visualai-scr/temp_LLP/sofia/llp-work/trained-models/{"adversarial" if wandb.config.adversarial_training else "non_adversarial"}/{wandb.config.resnet_type}/{wandb.config.epsilon}/{args.run_name}.pth'
     os.makedirs(os.path.dirname(PATH), exist_ok=True)
     torch.save(model.state_dict(), PATH)
 

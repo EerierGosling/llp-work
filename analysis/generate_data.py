@@ -145,7 +145,7 @@ class GaussianDiffusion:
                 current_sub_t = torch.tensor([i] * len(final), device=final.device)
                 
                 # For classifier-free guidance, we need both conditional and unconditional predictions
-                    # Get unconditional prediction (using label=0)
+                # Get unconditional prediction (using label=0)
                 unconditional_kwargs = model_kwargs.copy()
                 unconditional_kwargs["y"] = torch.zeros_like(model_kwargs["y"])
                 unconditional_pred = model(final, current_t, **unconditional_kwargs)
